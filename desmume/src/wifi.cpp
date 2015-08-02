@@ -31,6 +31,7 @@
 	#include <string.h> 	 
 	#include <arpa/inet.h> 	 
 	#include <sys/socket.h> 	 
+	#include <poll.h>
 	#define socket_t    int 	 
 	#define sockaddr_t  struct sockaddr
 	#define closesocket close
@@ -1890,15 +1891,11 @@ void Adhoc_msTrigger()
 		return;
 
 	// Check every millisecond if we received a packet
-	fd_set fd;
-	struct timeval tv;
+	struct pollfd fds;
+	fds.fd = wifi_socket;
+	fds.events = POLLIN;
 
-	FD_ZERO(&fd);
-	FD_SET(wifi_socket, &fd);
-	tv.tv_sec = 0; 
-	tv.tv_usec = 0;
-
-	if (select(1, &fd, 0, 0, &tv))
+	if (poll(&fds, 1, 0) > 0)
 	{
 		sockaddr_t fromAddr;
 		socklen_t fromLen = sizeof(sockaddr_t);
