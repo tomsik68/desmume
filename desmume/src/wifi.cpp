@@ -1909,7 +1909,7 @@ void Adhoc_msTrigger()
 		u8* ptr;
 		u16 packetLen;
 
-		int nbytes = recvfrom(wifi_socket, (char*)buf, 1536, 0, &fromAddr, &fromLen);
+		int nbytes = recv(wifi_socket, (char*)buf, 1536, 0);
 
 		// No packet arrived (or there was an error)
 		if (nbytes <= 0)
