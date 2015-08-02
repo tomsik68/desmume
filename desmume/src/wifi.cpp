@@ -33,7 +33,7 @@
 	#include <sys/socket.h> 	 
 	#include <poll.h>
 	#define socket_t    int 	 
-	#define sockaddr_t  struct sockaddr
+	#define sockaddr_t  sockaddr
 	#define closesocket close
 	#define PCAP_DEVICE_NAME name
 #endif
@@ -60,7 +60,7 @@ bool bWFCUserWarned = false;
 
 #ifdef EXPERIMENTAL_WIFI_COMM
 socket_t wifi_socket = INVALID_SOCKET;
-sockaddr_t sendAddr;
+sockaddr_in sendAddr;
 #ifndef WIN32
 #include "pcap/pcap.h"
 #endif
@@ -701,6 +701,9 @@ void WIFI_Reset()
 	wifiMac.TXCnt = wifiMac.TXStat = wifiMac.TXSeqNo = wifiMac.TXBusy = 0;
 	while (!wifiMac.RXPacketQueue.empty())
 		wifiMac.RXPacketQueue.pop();
+
+	// force AdHoc mode
+	CommonSettings.wifi.mode = 0;
 
 	if((u32)CommonSettings.wifi.mode >= ARRAY_SIZE(wifiComs))
 		CommonSettings.wifi.mode = 0;
@@ -1785,7 +1788,7 @@ typedef struct _Adhoc_FrameHeader
 
 bool Adhoc_Init()
 {
-	const int yes = 1;
+	int yes = 1;
 	int res;
 
 	if (!CurrentWifiHandler->WIFI_SocketsAvailable())
@@ -1818,11 +1821,12 @@ bool Adhoc_Init()
 		return false;
 	}
 	// Bind the socket to any address on port 7000
-	sockaddr_t saddr;
-	saddr.sa_family = AF_INET;
-	*(u32*)&saddr.sa_data[2] = htonl(INADDR_ANY); 
-	*(u16*)&saddr.sa_data[0] = htons(BASEPORT);
-	res = bind(wifi_socket, &saddr, sizeof(sockaddr_t));
+	struct sockaddr_in saddr;
+	memset((char*)&saddr, 0, sizeof(saddr));
+	saddr.sin_family = AF_INET;
+	saddr.sin_port = htons(BASEPORT);
+	saddr.sin_addr.s_addr = htonl(INADDR_ANY);
+	res = bind(wifi_socket, (struct sockaddr*)(&saddr), sizeof(saddr));
 	if (res < 0)
 	{
 		WIFI_LOG(1, "Ad-hoc: failed to bind the socket.\n");
@@ -1832,9 +1836,10 @@ bool Adhoc_Init()
 
 
 	// Prepare an address structure for sending packets
-	sendAddr.sa_family = AF_INET;
-	*(u32*)&sendAddr.sa_data[2] = htonl(INADDR_BROADCAST); 
-	*(u16*)&sendAddr.sa_data[0] = htons(BASEPORT);
+	memset((char*)&sendAddr, 0, sizeof(sendAddr));
+	sendAddr.sin_family = AF_INET;
+	sendAddr.sin_port = htons(BASEPORT);
+	sendAddr.sin_addr.s_addr = htonl(INADDR_BROADCAST);
 
 	Adhoc_Reset();
 
@@ -1879,7 +1884,7 @@ void Adhoc_SendPacket(u8* packet, u32 len)
 
 	memcpy(ptr, packet, len);
 
-	int nbytes = sendto(wifi_socket, (const char*)frame, frameLen, 0, &sendAddr, sizeof(sockaddr_t));
+	int nbytes = sendto(wifi_socket, (const char*)frame, frameLen, 0, (const struct sockaddr*)&sendAddr, sizeof(sendAddr));
 	
 	WIFI_LOG(4, "Ad-hoc: sent %i/%i bytes of packet.\n", nbytes, frameLen);
 
@@ -1899,7 +1904,7 @@ void Adhoc_msTrigger()
 	if (poll(&fds, 1, 0) > 0)
 	{
 		sockaddr_t fromAddr;
-		socklen_t fromLen = sizeof(sockaddr_t);
+		socklen_t fromLen = sizeof(fromAddr);
 		u8 buf[1536];
 		u8* ptr;
 		u16 packetLen;
