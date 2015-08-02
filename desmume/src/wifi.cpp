@@ -71,8 +71,15 @@ pcap_t *wifi_bridge = NULL;
 #define PCAP_OPENFLAG_PROMISCUOUS 1
 #endif
 
-static WifiHandler _defaultHandler;
-WifiHandler *CurrentWifiHandler = &_defaultHandler;
+
+#ifdef HOST_WINDOWS
+	static WifiHandler _defaultHandler;
+	WifiHandler* CurrentWifiHandler = &_defaultHandler;
+#else
+	static UnixWifiHandler _unixHandler;
+	WifiHandler* CurrentWifiHandler = (WifiHandler*)(&_unixHandler);
+#endif
+
 
 wifimac_t wifiMac;
 SoftAP_t SoftAP;
