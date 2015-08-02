@@ -22,6 +22,7 @@
 #include <stdio.h>
 #include <queue>
 #include "types.h"
+#include <time.h>
 
 #ifdef EXPERIMENTAL_WIFI_COMM
 	#ifdef HOST_WINDOWS
@@ -627,7 +628,12 @@ public:
 #ifdef EXPERIMENTAL_WIFI_COMM
 	virtual bool WIFI_SocketsAvailable() { return true; }
 	virtual bool WIFI_PCapAvailable() { return false; }
-	virtual void WIFI_GetUniqueMAC(u8* mac) {}
+	virtual void WIFI_GetUniqueMAC(u8* mac) {
+		u8 firstDigit = time(NULL) % 256;
+		for(int i = 0; i < 6; ++i){
+			mac[i] = firstDigit + i;
+		}
+	}
 	virtual bool WIFI_WFCWarning() { return false; }
 
 	virtual int PCAP_findalldevs(pcap_if_t** alldevs, char* errbuf) { return -1; }
