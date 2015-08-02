@@ -1785,7 +1785,7 @@ typedef struct _Adhoc_FrameHeader
 
 bool Adhoc_Init()
 {
-	BOOL opt_true = TRUE;
+	const int yes = 1;
 	int res;
 
 	if (!CurrentWifiHandler->WIFI_SocketsAvailable())
@@ -1805,8 +1805,18 @@ bool Adhoc_Init()
 
 	// Enable the socket to be bound to an address/port that is already in use
 	// This enables us to communicate with another DeSmuME instance running on the same computer.
-	res = setsockopt(wifi_socket, SOL_SOCKET, SO_REUSEADDR, (const char*)&opt_true, sizeof(BOOL));
+	res = setsockopt(wifi_socket, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int));
+	res = setsockopt(wifi_socket, SOL_SOCKET, SO_REUSEPORT, &yes, sizeof(int));
 
+	// Enable broadcast mode
+	// Not doing so results in failure when sendto'ing to broadcast address
+	res = setsockopt(wifi_socket, SOL_SOCKET, SO_BROADCAST, &yes, sizeof(int));
+	if (res < 0)
+	{
+		WIFI_LOG(1, "Ad-hoc: failed to enable broadcast mode.\n");
+		closesocket(wifi_socket); wifi_socket = INVALID_SOCKET;
+		return false;
+	}
 	// Bind the socket to any address on port 7000
 	sockaddr_t saddr;
 	saddr.sa_family = AF_INET;
@@ -1820,15 +1830,6 @@ bool Adhoc_Init()
 		return false;
 	}
 
-	// Enable broadcast mode
-	// Not doing so results in failure when sendto'ing to broadcast address
-	res = setsockopt(wifi_socket, SOL_SOCKET, SO_BROADCAST, (const char*)&opt_true, sizeof(BOOL));
-	if (res < 0)
-	{
-		WIFI_LOG(1, "Ad-hoc: failed to enable broadcast mode.\n");
-		closesocket(wifi_socket); wifi_socket = INVALID_SOCKET;
-		return false;
-	}
 
 	// Prepare an address structure for sending packets
 	sendAddr.sa_family = AF_INET;
